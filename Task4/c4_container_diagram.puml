@@ -1,0 +1,59 @@
+@startuml C4 Container Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров: Интеграция кол-центров с модулем управления ставками
+
+Person(manager_callcenter, "Менеджер кол-центра", "Консультирует клиентов по ставкам")
+Person(manager_partner, "Оператор партнёрского кол-центра", "Консультирует клиентов по ставкам")
+Person(manager_backoffice, "Менеджер бэк-офиса", "Управляет ставками")
+
+System_Boundary(callcenter_boundary, "Система кол-центра") {
+    Container(web_ui_callcenter, "Веб-интерфейс", "React.js", "UI для менеджеров")
+    Container(backend_callcenter, "Бэкенд", "Java Spring Boot", "Обработка запросов")
+    ContainerDb(callcenter_db, "База данных", "PostgreSQL", "Хранение данных")
+}
+
+System_Boundary(abs_boundary, "АБС") {
+    Container(desktop_client, "Десктопный клиент", "Delphi", "Интерфейс для менеджеров")
+    Container(rates_module, "Модуль управления ставками", "PL-SQL", "Расчет и хранение ставок")
+    ContainerDb(abs_db, "База данных", "Oracle", "Хранение ставок")
+    Container(integration_service, "Сервис интеграции депозитов", "PL-SQL/REST API", "API для ставок, формирование файлов")
+}
+
+System_Boundary(partner_boundary, "Система партнёрского кол-центра") {
+    Container(partner_ui, "Веб-интерфейс", "", "UI для операторов")
+    Container(partner_backend, "Бэкенд", "", "Обработка файлов со ставками")
+}
+
+System_Ext(sftp_server, "SFTP-сервер", "OpenSSH или специализированный", "Хранение файлов со ставками")
+
+' Связи пользователей
+Rel(manager_callcenter, web_ui_callcenter, "Запрашивает ставки", "HTTPS")
+Rel(manager_partner, partner_ui, "Просматривает ставки", "HTTPS")
+Rel(manager_backoffice, desktop_client, "Управляет ставками", "Desktop")
+
+' Связи внутри системы кол-центра
+Rel(web_ui_callcenter, backend_callcenter, "API", "HTTP")
+Rel(backend_callcenter, callcenter_db, "Чтение/запись", "SQL")
+
+' Связи системы кол-центра с АБС
+Rel(backend_callcenter, integration_service, "Получение ставок", "REST API (HTTPS)")
+
+' Связи внутри АБС
+Rel(desktop_client, rates_module, "Управление ставками", "API")
+Rel(rates_module, abs_db, "Чтение/запись", "SQL")
+Rel(integration_service, rates_module, "Получение ставок", "PL-SQL")
+Rel(integration_service, abs_db, "Чтение ставок", "SQL")
+
+' Связи с SFTP
+Rel(integration_service, sftp_server, "Загрузка файлов со ставками", "SFTP")
+Rel(partner_backend, sftp_server, "Загрузка файлов со ставками", "SFTP")
+
+' Связи внутри партнёрского кол-центра
+Rel(partner_ui, partner_backend, "API", "HTTP")
+Rel(partner_backend, partner_ui, "Отображение ставок", "API")
+
+SHOW_LEGEND()
+
+@enduml
+
